@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from html import unescape
 from typing import Iterable
 
 from rapidfuzz import fuzz
@@ -17,6 +19,8 @@ class NormalizedItem:
     timestamp: datetime
     raw_text: str
     tier: int
+    category: str = ""
+    deadline: str = "Unknown"
 
     def to_dict(self) -> dict:
         return {
@@ -26,11 +30,21 @@ class NormalizedItem:
             "timestamp": self.timestamp.isoformat(),
             "raw_text": self.raw_text,
             "tier": self.tier,
+            "category": self.category,
+            "deadline": self.deadline,
         }
 
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def strip_html(text: str) -> str:
+    """Remove HTML tags and decode entities."""
+    text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = unescape(text)
+    return " ".join(text.split())
 
 
 def parse_datetime(value: object) -> datetime:
@@ -60,8 +74,10 @@ def normalize_item(
     timestamp: object,
     raw_text: str,
     tier: int,
+    category: str = "",
+    deadline: str = "Unknown",
 ) -> NormalizedItem | None:
-    title = " ".join((title or "").split())
+    title = strip_html(" ".join((title or "").split()))
     url = (url or "").strip()
     if not title or not url:
         return None
@@ -70,8 +86,10 @@ def normalize_item(
         url=url,
         source=source,
         timestamp=parse_datetime(timestamp),
-        raw_text=" ".join((raw_text or title).split())[:3000],
+        raw_text=strip_html(" ".join((raw_text or title).split()))[:3000],
         tier=tier,
+        category=category,
+        deadline=deadline,
     )
 
 
@@ -95,4 +113,3 @@ def dedupe_items(items: Iterable[NormalizedItem], title_threshold: int = 92) -> 
         deduped.append(item)
 
     return deduped
-

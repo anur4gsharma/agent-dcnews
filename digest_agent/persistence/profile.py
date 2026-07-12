@@ -5,8 +5,16 @@ from pathlib import Path
 
 
 DEFAULT_PROFILE = {
-    "interests": ["deep learning fundamentals", "agentic systems", "open-source ML tooling"],
+    "interests": [
+        "deep learning fundamentals", "agentic systems", "open-source ML tooling",
+        "AI/ML internships", "hackathons", "startup ecosystem",
+        "software engineering", "entrepreneurship", "computer vision", "NLP and LLMs",
+    ],
     "skill_level": "intermediate",
+    "focus_areas": [
+        "remote internships", "AI/ML competitions", "hackathons",
+        "open-source programs", "fellowships", "research opportunities", "developer events",
+    ],
     "sent_headlines_last_7_days": [],
     "feedback_log": [],
 }

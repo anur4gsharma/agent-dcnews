@@ -5,11 +5,57 @@ from datetime import date
 from digest_agent.editors.gemini_client import GeminiEditorClient
 
 
-CHIEF_SYSTEM_PROMPT = """You are the Chief Editor for a weekly AI/tech digest.
-Use Reddit sentiment as a tiebreaker: prefer stories that are actually being discussed, but do not let virality override substance.
-Produce final JSON with date, top_news, and top_opportunities.
-top_news has exactly up to 5 objects with title, url, why_it_matters, source.
-top_opportunities has exactly up to 5 objects with title, url, why_it_matters, type."""
+CHIEF_SYSTEM_PROMPT = """You are the Chief Editor for a weekly AI/tech opportunity digest targeting a CS student focused on AI/ML, startups, and entrepreneurship.
+
+Use Reddit sentiment as a tiebreaker: prefer stories that are actually being discussed.
+Ensure diversity across categories — do not let one source dominate.
+
+Produce final JSON with: date, top_news, top_opportunities.
+
+top_news: up to 20 objects with title, url, why_it_matters, source.
+- Select from DIVERSE sources. Never include more than 3 items from the same source.
+- Prefer items with genuine technical substance over press releases.
+- why_it_matters must be a compelling 1-2 sentence explanation, NOT raw metadata or feed descriptions.
+
+top_opportunities: up to 20 objects with title, url, organization, category, mode, deadline, cost, difficulty, why_it_matters, priority_score.
+category must be one of: internship, hackathon, competition, event, fellowship, open_source, research.
+mode must be one of: Remote, Hybrid, In-person, Unknown.
+cost must be one of: Free, Paid, Unknown.
+difficulty must be one of: Beginner, Intermediate, Advanced, Unknown.
+priority_score is 1-10 — use the FULL range:
+  9-10: Perfect match — remote, free, AI/ML focused, approaching deadline, prestigious org
+  7-8: Strong match — most criteria met
+  5-6: Moderate — relevant but missing some criteria
+  3-4: Weak — tangentially related
+  1-2: Poor fit
+Do NOT give all items the same score. Spread scores across the range based on genuine fit.
+why_it_matters must be a compelling 1-sentence explanation of value to an AI/ML student, NOT raw prize/theme data.
+
+Prioritize: Remote, Free, AI/ML focused, student-friendly, approaching deadlines.
+Deprioritize: Paid events, non-tech roles, expired, low-quality."""
+
+
+def _diverse_select(
+    items: list[dict], key: str, limit: int,
+    max_per_source: int = 3, max_per_category: int | None = None,
+) -> list[dict]:
+    """Select items ensuring no single source or category dominates."""
+    selected: list[dict] = []
+    source_counts: dict[str, int] = {}
+    category_counts: dict[str, int] = {}
+    for item in items:
+        source = str(item.get(key, "Unknown"))
+        category = str(item.get("category", "other"))
+        if source_counts.get(source, 0) >= max_per_source:
+            continue
+        if max_per_category is not None and category_counts.get(category, 0) >= max_per_category:
+            continue
+        selected.append(item)
+        source_counts[source] = source_counts.get(source, 0) + 1
+        category_counts[category] = category_counts.get(category, 0) + 1
+        if len(selected) >= limit:
+            break
+    return selected
 
 
 def run_chief_editor(
@@ -20,6 +66,10 @@ def run_chief_editor(
     sentiment_items: list[dict],
     digest_date: date,
 ) -> dict:
+    # Build DIVERSE fallback — max 3 per source for news, max 2 per org for opportunities
+    diverse_news = _diverse_select(tech_candidates, "source", 20, max_per_source=3, max_per_category=None)
+    diverse_opps = _diverse_select(opportunity_candidates, "organization", 20, max_per_source=2, max_per_category=5)
+
     fallback = {
         "date": digest_date.isoformat(),
         "top_news": [
@@ -29,16 +79,22 @@ def run_chief_editor(
                 "why_it_matters": item["why_it_matters"],
                 "source": item.get("source", ""),
             }
-            for item in tech_candidates[:5]
+            for item in diverse_news
         ],
         "top_opportunities": [
             {
                 "title": item["title"],
                 "url": item["url"],
+                "organization": item.get("organization", "Unknown"),
+                "category": item.get("category", "opportunity"),
+                "mode": item.get("mode", "Remote"),
+                "deadline": item.get("deadline", "Unknown"),
+                "cost": item.get("cost", "Free"),
+                "difficulty": item.get("difficulty", "Intermediate"),
                 "why_it_matters": item["why_it_matters"],
-                "type": item.get("type", "opportunity"),
+                "priority_score": item.get("priority_score", 5),
             }
-            for item in opportunity_candidates[:5]
+            for item in diverse_opps
         ],
     }
     result = client.generate_json(
@@ -51,7 +107,10 @@ def run_chief_editor(
         },
         fallback=fallback,
     )
-    return _coerce_digest(result, fallback)
+    digest = _coerce_digest(result, fallback)
+    # Attach sentiment to the digest so delivery layers can use it
+    digest["sentiment"] = sentiment_items[:10] if sentiment_items else []
+    return digest
 
 
 def _coerce_digest(result: object, fallback: dict) -> dict:
@@ -59,26 +118,46 @@ def _coerce_digest(result: object, fallback: dict) -> dict:
         return fallback
     return {
         "date": str(result.get("date") or fallback["date"]),
-        "top_news": _coerce_list(result.get("top_news"), fallback["top_news"], "source"),
-        "top_opportunities": _coerce_list(result.get("top_opportunities"), fallback["top_opportunities"], "type"),
+        "top_news": _coerce_news_list(result.get("top_news"), fallback["top_news"]),
+        "top_opportunities": _coerce_opp_list(result.get("top_opportunities"), fallback["top_opportunities"]),
     }
 
 
-def _coerce_list(value: object, fallback: list[dict], extra_key: str) -> list[dict]:
+def _coerce_news_list(value: object, fallback: list[dict]) -> list[dict]:
     if not isinstance(value, list):
         return fallback
     cleaned: list[dict] = []
-    for index, item in enumerate(value[:5]):
+    for index, item in enumerate(value[:20]):
         if not isinstance(item, dict):
             continue
         base = fallback[min(index, len(fallback) - 1)] if fallback else {}
-        cleaned.append(
-            {
-                "title": str(item.get("title") or base.get("title", "")),
-                "url": str(item.get("url") or base.get("url", "")),
-                "why_it_matters": str(item.get("why_it_matters") or base.get("why_it_matters", "")),
-                extra_key: str(item.get(extra_key) or base.get(extra_key, "")),
-            }
-        )
+        cleaned.append({
+            "title": str(item.get("title") or base.get("title", "")),
+            "url": str(item.get("url") or base.get("url", "")),
+            "why_it_matters": str(item.get("why_it_matters") or base.get("why_it_matters", "")),
+            "source": str(item.get("source") or base.get("source", "")),
+        })
     return cleaned or fallback
 
+
+def _coerce_opp_list(value: object, fallback: list[dict]) -> list[dict]:
+    if not isinstance(value, list):
+        return fallback
+    cleaned: list[dict] = []
+    for index, item in enumerate(value[:20]):
+        if not isinstance(item, dict):
+            continue
+        base = fallback[min(index, len(fallback) - 1)] if fallback else {}
+        cleaned.append({
+            "title": str(item.get("title") or base.get("title", "")),
+            "url": str(item.get("url") or base.get("url", "")),
+            "organization": str(item.get("organization") or base.get("organization", "Unknown")),
+            "category": str(item.get("category") or base.get("category", "opportunity")),
+            "mode": str(item.get("mode") or base.get("mode", "Remote")),
+            "deadline": str(item.get("deadline") or base.get("deadline", "Unknown")),
+            "cost": str(item.get("cost") or base.get("cost", "Free")),
+            "difficulty": str(item.get("difficulty") or base.get("difficulty", "Intermediate")),
+            "why_it_matters": str(item.get("why_it_matters") or base.get("why_it_matters", "")),
+            "priority_score": max(1, min(10, int(item.get("priority_score") or base.get("priority_score", 5)))),
+        })
+    return cleaned or fallback

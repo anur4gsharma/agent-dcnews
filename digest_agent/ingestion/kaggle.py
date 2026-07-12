@@ -37,17 +37,29 @@ async def fetch_kaggle_competitions() -> list[NormalizedItem]:
         ref = row.get("ref") or row.get("Ref") or ""
         if not title:
             continue
+
+        # Build clean summary
+        reward = row.get("Reward") or row.get("reward", "")
+        deadline = row.get("Deadline") or row.get("deadline", "Unknown")
+        summary_parts = []
+        if reward:
+            summary_parts.append(f"Reward: {reward}")
+        if deadline and deadline != "Unknown":
+            summary_parts.append(f"Deadline: {deadline}")
+        raw_text = ". ".join(summary_parts) if summary_parts else title
+
         item = normalize_item(
             title=title,
             url=f"https://www.kaggle.com/competitions/{ref}" if ref else "https://www.kaggle.com/competitions",
             source="Kaggle",
             timestamp=now_utc(),
-            raw_text=f"Reward: {row.get('Reward', '')}. Deadline: {row.get('Deadline', '')}",
+            raw_text=raw_text,
             tier=2,
+            category="competition",
+            deadline=deadline,
         )
         if item:
             items.append(item)
 
     LOGGER.info("Fetched %s Kaggle competitions", len(items))
     return items[:20]
-

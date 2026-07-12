@@ -73,6 +73,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
+    # Suppress noisy per-request HTTP logs — we log results at the source level instead
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("google_genai").setLevel(logging.WARNING)
     args = parse_args()
     if args.run_now:
         asyncio.run(run_digest(mock=args.mock, dry_run=args.dry_run))
@@ -80,4 +84,3 @@ def main() -> None:
         schedule_digest(mock=args.mock, dry_run=args.dry_run)
     else:
         raise SystemExit("Use --run-now or --schedule")
-
