@@ -42,6 +42,14 @@ class DigestDB:
             ).fetchall()
         return [row["title"] for row in rows]
 
+    def get_recent_urls(self, limit: int = 100) -> list[str]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT url FROM sent_items ORDER BY sent_date DESC, id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [row["url"] for row in rows]
+
     def record_digest(self, digest: dict, sent_date: date) -> None:
         rows = []
         for item in digest.get("top_news", []):

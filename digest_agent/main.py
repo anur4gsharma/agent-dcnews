@@ -24,15 +24,25 @@ async def run_digest(*, mock: bool = False, dry_run: bool = False) -> dict:
     db.initialize()
 
     profile = load_profile(settings.profile_path)
-    db_headlines = db.get_recent_headlines()
+    db_headlines = db.get_recent_headlines(limit=200)
+    db_urls = set(db.get_recent_urls(limit=200))
     profile["sent_headlines_last_7_days"] = list(dict.fromkeys(profile.get("sent_headlines_last_7_days", []) + db_headlines))[:100]
 
     items, sentiment_items = await ingest_all(settings.digest_lookback_days, mock=mock)
+    
+    # Filter out items that have URLs or exact titles we have already sent recently
+    db_headlines_set = set(db_headlines)
+    filtered_items = [
+        item for item in items 
+        if item.url not in db_urls and item.title not in db_headlines_set
+    ]
+    LOGGER.info("Filtered out %d already sent items. Passing %d to editor.", len(items) - len(filtered_items), len(filtered_items))
+
     local_now = datetime.now(settings.zoneinfo)
     digest = run_editor_pipeline(
         api_key=settings.gemini_api_key,
         model=settings.gemini_model,
-        items=items,
+        items=filtered_items,
         sentiment_items=sentiment_items,
         profile=profile,
         digest_date=local_now.date(),
@@ -54,11 +64,11 @@ def schedule_digest(*, mock: bool = False, dry_run: bool = False) -> None:
     scheduler = BlockingScheduler(timezone=settings.zoneinfo)
     scheduler.add_job(
         lambda: asyncio.run(run_digest(mock=mock, dry_run=dry_run)),
-        CronTrigger(day_of_week="sun", hour=hour, minute=minute, timezone=settings.zoneinfo),
-        id="weekly_digest",
+        CronTrigger(hour=hour, minute=minute, timezone=settings.zoneinfo),
+        id="daily_digest",
         replace_existing=True,
     )
-    LOGGER.info("Scheduled weekly digest for Sundays at %s %s", settings.schedule_time, settings.schedule_timezone)
+    LOGGER.info("Scheduled daily digest for every day at %s %s", settings.schedule_time, settings.schedule_timezone)
     scheduler.start()
 
 
