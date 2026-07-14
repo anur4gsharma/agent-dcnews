@@ -84,7 +84,3 @@ To enable this on your own fork:
 - **Markdown archive** in `digests/YYYY-MM-DD.md`.
 - **SQLite state** in `digest.db` (maintains history to prevent duplicate alerts).
 - **Rolling profile** in `profile.json`.
-
-## Opportunity Format
-
-Each opportunity includes: Title, Organization, Category, Mode (Remote/Hybrid/In-person), Deadline, Cost, Difficulty, Priority Score (1-10), and a concise relevance summary explaining why it matters for an AI/ML student.
