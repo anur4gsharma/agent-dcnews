@@ -24,6 +24,14 @@ async def post_to_discord(webhook_url: str | None, digest: dict, *, dry_run: boo
         LOGGER.info("Skipping Discord post because dry_run=%s or webhook is missing", dry_run)
         return
 
+    is_saturday = False
+    try:
+        from datetime import date
+        digest_date = date.fromisoformat(digest.get("date", ""))
+        is_saturday = digest_date.weekday() == 5
+    except Exception:
+        pass
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         # 1. Post News in chunks of 5
         news_items = digest.get("top_news", [])
@@ -43,14 +51,39 @@ async def post_to_discord(webhook_url: str | None, digest: dict, *, dry_run: boo
 
         # 2. Post Opportunities in chunks of 5
         opp_items = digest.get("top_opportunities", [])
-        if opp_items:
-            for i in range(0, len(opp_items), 5):
-                chunk = opp_items[i:i + 5]
-                title = f"🚀 Opportunities (Part {i//5 + 1})" if len(opp_items) > 5 else "🚀 Opportunities"
+        
+        fellowship_items = []
+        regular_opp_items = []
+        if is_saturday:
+            for item in opp_items:
+                if item.get("category") == "fellowship" or "fellowship" in item.get("title", "").lower():
+                    fellowship_items.append(item)
+                else:
+                    regular_opp_items.append(item)
+        else:
+            regular_opp_items = opp_items
+
+        if regular_opp_items:
+            for i in range(0, len(regular_opp_items), 5):
+                chunk = regular_opp_items[i:i + 5]
+                title = f"🚀 Opportunities (Part {i//5 + 1})" if len(regular_opp_items) > 5 else "🚀 Opportunities"
                 
                 embed = {
                     "title": title,
                     "color": 0x00C853,
+                    "fields": _opportunity_fields(chunk),
+                }
+                await _send_embeds(client, webhook_url, [embed])
+
+        # 2b. Post Fellowships if Saturday
+        if is_saturday and fellowship_items:
+            for i in range(0, len(fellowship_items), 5):
+                chunk = fellowship_items[i:i + 5]
+                title = f"🎓 Special Saturday Fellowships (Part {i//5 + 1})" if len(fellowship_items) > 5 else "🎓 Special Saturday Fellowships"
+                
+                embed = {
+                    "title": title,
+                    "color": 0x9C27B0,
                     "fields": _opportunity_fields(chunk),
                 }
                 await _send_embeds(client, webhook_url, [embed])
@@ -77,12 +110,18 @@ async def _send_embeds(client: httpx.AsyncClient, webhook_url: str, embeds: list
 def _news_fields(items: list[dict]) -> list[dict]:
     fields = []
     for item in items:
-        name = f"[{_truncate(item['title'], 200)}]({item['url']})"
+        name = _truncate(item['title'], 256)
         value = item["why_it_matters"]
         source = item.get("source", "")
+        url = item.get("url", "")
+        
+        value_parts = [value]
         if source:
-            value = f"{value}\n_Source: {source}_"
-        fields.append({"name": name, "value": _truncate(value, 800), "inline": False})
+            value_parts.append(f"_Source: {source}_")
+        if url:
+            value_parts.append(f"[Read more]({url})")
+            
+        fields.append({"name": name, "value": _truncate("\n".join(value_parts), 1024), "inline": False})
     return fields
 
 
@@ -91,33 +130,18 @@ def _opportunity_fields(items: list[dict]) -> list[dict]:
     for item in items:
         category = item.get("category", "opportunity")
         emoji = CATEGORY_EMOJI.get(category, "✨")
-        name = f"{emoji} [{_truncate(item['title'], 200)}]({item['url']})"
+        name = _truncate(f"{emoji} {item['title']}", 256)
 
-        meta_parts = []
-        org = item.get("organization", "")
-        if org and org != "Unknown":
-            meta_parts.append(f"**Org:** {org}")
-        mode = item.get("mode", "")
-        if mode and mode != "Unknown":
-            meta_parts.append(f"**Mode:** {mode}")
-        deadline = item.get("deadline", "")
-        if deadline and deadline != "Unknown":
-            meta_parts.append(f"**Deadline:** {deadline}")
-        cost = item.get("cost", "")
-        if cost and cost != "Unknown":
-            meta_parts.append(f"**Cost:** {cost}")
-        difficulty = item.get("difficulty", "")
-        if difficulty and difficulty != "Unknown":
-            meta_parts.append(f"**Level:** {difficulty}")
-        priority = item.get("priority_score", "")
-        if priority:
-            meta_parts.append(f"**Priority:** {priority}/10")
-
-        meta_line = " · ".join(meta_parts)
+        value_parts = []
         why = item.get("why_it_matters", "")
-        value = f"{why}\n{meta_line}" if meta_line else why
+        if why:
+            value_parts.append(why)
+            
+        url = item.get("url", "")
+        if url:
+            value_parts.append(f"[Apply/Details]({url})")
 
-        fields.append({"name": name, "value": _truncate(value, 800), "inline": False})
+        fields.append({"name": name, "value": _truncate("\n".join(value_parts), 1024), "inline": False})
     return fields
 
 

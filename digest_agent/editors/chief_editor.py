@@ -12,12 +12,12 @@ Ensure diversity across categories — do not let one source dominate.
 
 Produce final JSON with: date, top_news, top_opportunities.
 
-top_news: up to 20 objects with title, url, why_it_matters, source.
-- Select from DIVERSE sources. Never include more than 3 items from the same source.
+top_news: up to 30 objects with title, url, why_it_matters, source.
+- Select from DIVERSE sources. Never include more than 4 items from the same source.
 - Prefer items with genuine technical substance over press releases.
 - why_it_matters must be a compelling 1-2 sentence explanation, NOT raw metadata or feed descriptions.
 
-top_opportunities: up to 20 objects with title, url, organization, category, mode, deadline, cost, difficulty, why_it_matters, priority_score.
+top_opportunities: up to 30 objects with title, url, organization, category, mode, deadline, cost, difficulty, why_it_matters, priority_score.
 category must be one of: internship, hackathon, competition, event, fellowship, open_source, research.
 mode must be one of: Remote, Hybrid, In-person, Unknown.
 cost must be one of: Free, Paid, Unknown.
@@ -66,9 +66,9 @@ def run_chief_editor(
     sentiment_items: list[dict],
     digest_date: date,
 ) -> dict:
-    # Build DIVERSE fallback — max 3 per source for news, max 2 per org for opportunities
-    diverse_news = _diverse_select(tech_candidates, "source", 20, max_per_source=3, max_per_category=None)
-    diverse_opps = _diverse_select(opportunity_candidates, "organization", 20, max_per_source=2, max_per_category=5)
+    # Build DIVERSE fallback — max 4 per source for news, max 3 per org for opportunities
+    diverse_news = _diverse_select(tech_candidates, "source", 30, max_per_source=4, max_per_category=None)
+    diverse_opps = _diverse_select(opportunity_candidates, "organization", 30, max_per_source=3, max_per_category=7)
 
     fallback = {
         "date": digest_date.isoformat(),
@@ -127,7 +127,7 @@ def _coerce_news_list(value: object, fallback: list[dict]) -> list[dict]:
     if not isinstance(value, list):
         return fallback
     cleaned: list[dict] = []
-    for index, item in enumerate(value[:20]):
+    for index, item in enumerate(value[:30]):
         if not isinstance(item, dict):
             continue
         base = fallback[min(index, len(fallback) - 1)] if fallback else {}
@@ -144,7 +144,7 @@ def _coerce_opp_list(value: object, fallback: list[dict]) -> list[dict]:
     if not isinstance(value, list):
         return fallback
     cleaned: list[dict] = []
-    for index, item in enumerate(value[:20]):
+    for index, item in enumerate(value[:30]):
         if not isinstance(item, dict):
             continue
         base = fallback[min(index, len(fallback) - 1)] if fallback else {}
