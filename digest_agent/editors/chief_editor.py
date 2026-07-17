@@ -15,7 +15,7 @@ Produce final JSON with: date, top_news, top_opportunities.
 top_news: up to 30 objects with title, url, why_it_matters, source.
 - Select from DIVERSE sources. Never include more than 4 items from the same source.
 - Prefer items with genuine technical substance over press releases.
-- why_it_matters must be a compelling 1-2 sentence explanation, NOT raw metadata or feed descriptions.
+- why_it_matters must be an ultra-concise, 1-sentence summary of what is happening. Strip out all filler text, marketing fluff, and background info. Be extremely brief.
 
 top_opportunities: up to 30 objects with title, url, organization, category, mode, deadline, cost, difficulty, why_it_matters, priority_score.
 category must be one of: internship, hackathon, competition, event, fellowship, open_source, research.
@@ -32,6 +32,7 @@ Do NOT give all items the same score. Spread scores across the range based on ge
 why_it_matters must be a compelling 1-sentence explanation of value to an AI/ML student, NOT raw prize/theme data.
 
 Prioritize: Remote, Free, AI/ML focused, student-friendly, approaching deadlines.
+CRITICAL RESTRICTION: For 'hackathon' and 'competition' categories, ONLY include items that are strictly Remote/Online OR located in India. You MUST discard any in-person hackathons/competitions located outside of India.
 Deprioritize: Paid events, non-tech roles, expired, low-quality."""
 
 
