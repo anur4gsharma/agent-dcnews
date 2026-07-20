@@ -1,4 +1,4 @@
-name: Weekly Digest
+name: Daily Digest
 
 on:
   schedule:
@@ -16,7 +16,8 @@ on:
           - 'true'
 
 permissions:
-  contents: write
+  contents: read
+  actions: write
 
 jobs:
   run-digest:
@@ -26,8 +27,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,6 +36,17 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      # Restore digest.db and profile.json from cache so deduplication
+      # and profile history carry over between runs without committing
+      # these files to the public repo.
+      - name: Restore pipeline state
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            digest.db
+            profile.json
+          key: digest-state
 
       - name: Run digest pipeline
         env:
@@ -52,10 +62,28 @@ jobs:
             python main.py --run-now
           fi
 
-      - name: Commit updated state back to repo
+      # Save updated state back to cache. The delete + save pattern
+      # ensures the cache is always overwritten with the latest state.
+      - name: Clear previous state cache
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "digest-bot"
-          git config user.email "digest-bot@users.noreply.github.com"
-          git add digest.db profile.json digests/
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update digest state $(date -u +'%Y-%m-%d')"
-          git push
+          gh cache delete digest-state --repo ${{ github.repository }} 2>/dev/null || true
+
+      - name: Save pipeline state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            digest.db
+            profile.json
+          key: digest-state
+
+      - name: Upload digest artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ github.run_id }}
+          path: digests/
+          retention-days: 30

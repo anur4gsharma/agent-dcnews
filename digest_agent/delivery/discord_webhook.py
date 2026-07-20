@@ -29,8 +29,8 @@ async def post_to_discord(webhook_url: str | None, digest: dict, *, dry_run: boo
         from datetime import date
         digest_date = date.fromisoformat(digest.get("date", ""))
         is_saturday = digest_date.weekday() == 5
-    except Exception:
-        pass
+    except (ValueError, TypeError) as exc:
+        LOGGER.debug("Could not parse digest date for Saturday check: %s", exc)
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         # 1. Post News in chunks of 5

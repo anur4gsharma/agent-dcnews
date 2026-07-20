@@ -19,6 +19,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 async def run_digest(*, mock: bool = False, dry_run: bool = False) -> dict:
+    """Execute the full digest pipeline: ingest, edit, publish, and persist state."""
     settings = get_settings()
     db = DigestDB(settings.database_path)
     db.initialize()
@@ -59,6 +60,7 @@ async def run_digest(*, mock: bool = False, dry_run: bool = False) -> dict:
 
 
 def schedule_digest(*, mock: bool = False, dry_run: bool = False) -> None:
+    """Start a blocking scheduler that runs the digest at the configured time daily."""
     settings = get_settings()
     hour, minute = [int(part) for part in settings.schedule_time.split(":", maxsplit=1)]
     scheduler = BlockingScheduler(timezone=settings.zoneinfo)
@@ -73,6 +75,7 @@ def schedule_digest(*, mock: bool = False, dry_run: bool = False) -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for --run-now, --schedule, --mock, and --dry-run."""
     parser = argparse.ArgumentParser(description="AI/tech weekly digest agent")
     parser.add_argument("--run-now", action="store_true", help="Run the full pipeline once")
     parser.add_argument("--schedule", action="store_true", help="Start the local weekly scheduler")
@@ -82,6 +85,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """CLI entry point — configure logging and dispatch to run or schedule mode."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     # Suppress noisy per-request HTTP logs — we log results at the source level instead
     logging.getLogger("httpx").setLevel(logging.WARNING)

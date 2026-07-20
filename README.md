@@ -10,6 +10,38 @@ The AI Opportunity Discovery Agent works through a fully automated pipeline desi
 3. **State Management & Deduplication:** Uses a local SQLite database (`digest.db`) to keep track of previously seen items, ensuring you never get duplicate content. It also maintains a dynamic user profile (`profile.json`) to adjust to changing interests.
 4. **Publishing:** Formats the best items into clean, readable Discord embeds and archives a Markdown copy locally.
 
+## Architecture
+
+```
+main.py                       # CLI entry point
+digest_agent/
+├── config.py                 # Settings from .env / environment
+├── main.py                   # Pipeline orchestration & scheduling
+├── ingestion/                # 20+ async data source scrapers
+│   ├── pipeline.py           # Runs all sources concurrently
+│   ├── rss_sources.py        # TechCrunch, Verge, arXiv, etc.
+│   ├── devpost.py            # Devpost hackathons
+│   ├── mlh.py                # MLH hackathons
+│   ├── competitions.py       # Kaggle, AIcrowd, DrivenData, etc.
+│   ├── events.py             # Luma, Eventbrite
+│   ├── remoteok.py           # Remote job listings
+│   ├── github_trending.py    # GitHub trending repos
+│   ├── reddit_sentiment.py   # Reddit community pulse
+│   └── ...
+├── editors/                  # LLM-powered content curation
+│   ├── pipeline.py           # Multi-stage editor chain
+│   ├── wire_editor.py        # Initial filtering & normalization
+│   ├── desk_editors.py       # Category-specific evaluation
+│   ├── chief_editor.py       # Final ranking & selection
+│   └── gemini_client.py      # Gemini API client with retry logic
+├── delivery/                 # Output formatting
+│   ├── discord_webhook.py    # Discord embed delivery
+│   └── markdown_archive.py   # Local markdown archiver
+└── persistence/              # State management
+    ├── db.py                 # SQLite deduplication database
+    └── profile.py            # User profile management
+```
+
 ## Sources (20+)
 
 | Category | Sources |
@@ -76,11 +108,17 @@ To enable this on your own fork:
 2. Add these repository secrets:
    - `GEMINI_API_KEY`
    - `DISCORD_WEBHOOK_URL`
-3. Enable workflows in the **Actions** tab of your repository. 
+3. Enable workflows in the **Actions** tab of your repository.
+
+Digest output (markdown archives and database state) is available as downloadable artifacts in the Actions run summary.
 
 ## Outputs
 
-- **Discord**: Two rich embeds delivered to your channel — one for Tech News, one for Opportunities, with structured metadata.
-- **Markdown archive** in `digests/YYYY-MM-DD.md`.
+- **Discord**: Rich embeds delivered to your channel — one for Tech News, one for Opportunities, with structured metadata.
+- **Markdown archive** in `digests/YYYY-MM-DD.md` (generated locally at runtime).
 - **SQLite state** in `digest.db` (maintains history to prevent duplicate alerts).
-- **Rolling profile** in `profile.json`.
+- **Rolling profile** in `profile.json` (generated on first run with default interests).
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

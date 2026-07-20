@@ -1,4 +1,7 @@
+# Environment
 .env
+
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -10,3 +13,14 @@ dist/
 build/
 *.egg-info/
 
+# Runtime state (generated per-user, not part of the source)
+digest.db
+profile.json
+digests/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

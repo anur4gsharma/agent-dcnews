@@ -67,6 +67,7 @@ def run_chief_editor(
     sentiment_items: list[dict],
     digest_date: date,
 ) -> dict:
+    """Rank and curate candidates into a final digest using the LLM chief editor."""
     # Build DIVERSE fallback — max 4 per source for news, max 3 per org for opportunities
     diverse_news = _diverse_select(tech_candidates, "source", 30, max_per_source=4, max_per_category=None)
     diverse_opps = _diverse_select(opportunity_candidates, "organization", 30, max_per_source=3, max_per_category=7)
@@ -115,6 +116,7 @@ def run_chief_editor(
 
 
 def _coerce_digest(result: object, fallback: dict) -> dict:
+    """Validate and normalize the LLM response into a well-typed digest dict."""
     if not isinstance(result, dict):
         return fallback
     return {

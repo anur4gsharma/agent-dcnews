@@ -1,3 +1,5 @@
+"""Application configuration loaded from environment variables and .env file."""
+
 from __future__ import annotations
 
 import os
@@ -16,6 +18,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 @dataclass(frozen=True)
 class Settings:
+    """Immutable application settings populated from environment variables."""
+
     gemini_api_key: str | None
     discord_webhook_url: str | None
     gemini_model: str
@@ -28,14 +32,16 @@ class Settings:
 
     @property
     def zoneinfo(self) -> ZoneInfo:
+        """Return a ZoneInfo object for the configured timezone."""
         return ZoneInfo(self.schedule_timezone)
 
 
 def get_settings() -> Settings:
+    """Build settings from environment variables with sensible defaults."""
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY"),
         discord_webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-1.5-pro"),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
         schedule_time=os.getenv("SCHEDULE_TIME", "07:00"),
         schedule_timezone=os.getenv("SCHEDULE_TIMEZONE", "Asia/Kolkata"),
         digest_lookback_days=int(os.getenv("DIGEST_LOOKBACK_DAYS", "7")),
