@@ -1,10 +1,10 @@
-# AI Opportunity Discovery Agent
+# agent-dcnews
 
 Python agent that discovers, ranks, and summarizes AI/ML opportunities — internships, hackathons, competitions, events, fellowships, and research — then delivers a curated daily digest to Discord.
 
 ## How It Works
 
-The AI Opportunity Discovery Agent works through a fully automated pipeline designed to find the highest-signal opportunities for CS and AI/ML students:
+The **agent-dcnews** pipeline works through a fully automated system designed to find the highest-signal opportunities for CS and AI/ML students:
 1. **Scraping & Aggregation:** Pulls data from 20+ sources, including specialized RSS feeds, tech news, hackathon platforms (Devpost/MLH), open source trackers, and Reddit.
 2. **LLM Evaluation (Gemini 2.0 Flash):** Evaluates all scraped items against a target profile. It filters out irrelevant content, extracts metadata (deadlines, cost, mode), and assigns a "Priority Score" (1-10) to opportunities.
 3. **State Management & Deduplication:** Uses a local SQLite database (`digest.db`) to keep track of previously seen items, ensuring you never get duplicate content. It also maintains a dynamic user profile (`profile.json`) to adjust to changing interests.
