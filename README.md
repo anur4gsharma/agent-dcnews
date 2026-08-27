@@ -118,7 +118,3 @@ Digest output (markdown archives and database state) is available as downloadabl
 - **Markdown archive** in `digests/YYYY-MM-DD.md` (generated locally at runtime).
 - **SQLite state** in `digest.db` (maintains history to prevent duplicate alerts).
 - **Rolling profile** in `profile.json` (generated on first run with default interests).
-
-## Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
